@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+        }
+
+        .user-message {
+            text-align: right;
+        }
+
+        .server-message {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" id="chatContainer"></div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Введите сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+        <button onclick="sendLocation()">Гео-локация</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+
+        function createMessageElement(message, isUserMessage) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            if (isUserMessage) {
+                messageElement.classList.add('user-message');
+            } else {
+                messageElement.classList.add('server-message');
+            }
+            messageElement.innerText = message;
+            return messageElement;
+        }
+
+        function displayMessage(message, isUserMessage) {
+            const messageElement = createMessageElement(message, isUserMessage);
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = messageInput.value;
+            if (message) {
+                displayMessage(message, true);
+                messageInput.value = '';
+                // Отправка сообщения на сервер
+                sendToEchoServer(message);
+            }
+        }
+
+        function sendLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+                        const locationUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=15/${latitude}/${longitude}`;
+                        displayMessage(locationUrl, true);
+                        // Отправка гео-локации на сервер
+                        sendToEchoServer(locationUrl);
+                    },
+                    function (error) {
+                        console.error('Ошибка получения гео-локации:', error);
+                    }
+                );
+            } else {
+                console.error('Гео-локация не поддерживается');
+            }
+        }
+
+        function sendToEchoServer(message) {
+            const socket = new WebSocket('wss://echo-ws-service.herokuapp.com');
+            
+        
+            socket.onopen = function(event) {
+                console.log('Соединение установлено');
+                socket.send(message);
+            };
+            
+            socket.onmessage = function(event) {
+                const serverMessage = event.data;
+                displayMessage(serverMessage, false);
+            
+                socket.close();
+            };
+            
+       
+            socket.onclose = function(event) {
+                console.log('Соединение закрыто');
+            };
+            
+   
+
